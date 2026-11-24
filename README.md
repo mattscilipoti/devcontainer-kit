@@ -1,0 +1,98 @@
+# devcontainer-kit
+
+Personal kit for giving a new project a devcontainer with the latest language
+releases, Claude Code sign-in and history that survive rebuilds, and scheduled
+out-of-date and security checks. An AI or a human runs it. Repo:
+`git@github.com:mattscilipoti/devcontainer-kit.git`, kept at
+`~/develop/devcontainer-kit/`.
+
+## Start here
+
+- **AI:** read [PROMPT.md](PROMPT.md) and follow it.
+- **Human:** answer the questions in PROMPT.md yourself, then run
+  `script/new-devcontainer` (below).
+
+## Shared and project-specific files
+
+| Lives in | What | Shared by |
+|---|---|---|
+| `~/develop/devcontainer-kit/` | this kit: stacks, templates, scripts, prompts | every project |
+| `~/.claude-devcontainers/shared/` | personal Claude rules (`CLAUDE.md`), mounted read-only | every project |
+| `~/.claude-devcontainers/<project>/` | that project's Claude sign-in and history (holds credentials) | one project |
+| `<project>/.devcontainer/`, `.github/`, `AGENTS.md` | generated devcontainer, scheduled checks, rules for AI | one project (committed) |
+
+Fixing the kit or `shared/` reaches every project. A project's files are its own
+once generated; the kit does not overwrite them unless asked (`--force`).
+
+## Stacks
+
+Stacks are small JSON fragments in [stacks/](stacks/). They compose: ask for
+several and the kit merges their apt packages, Dev Container Features, VS Code
+extensions, ports, and setup steps into one devcontainer.
+
+| Stack | What it adds |
+|---|---|
+| `go` | Go from the official `go` Feature |
+| `ruby` | the Ruby team's `rubylang/ruby` image (`-dev` variant) as the base |
+| `rails` | needs `ruby`; Rails gem, SQLite and libvips; options for Postgres and browser tests |
+| `web` | HTML/CSS/JS: Node (LTS by default), Prettier and ESLint, a static-server port |
+
+Combine them, for example `--stacks go,ruby` or `--stacks rails,web`. To add a
+stack, add `stacks/<name>.json` (copy the nearest one) and a row above.
+
+## Run it
+
+```bash
+script/new-devcontainer --project-dir ~/develop/myapp --stacks rails,web \
+    [--name myapp] [--node lts|latest|24] [--database sqlite|postgres] \
+    [--browser-tests] [--docker-in-docker] [--dry-run]
+```
+
+It looks up the latest releases (`script/latest-versions`: endoflife.date,
+RubyGems, Docker Hub), then writes `.devcontainer/`, `.github/dependabot.yml`,
+`.github/workflows/scheduled-checks.yml`, and a devcontainer section in
+`AGENTS.md`. Needs only `python3` and network access.
+
+## Why the choices
+
+- **Ruby from `rubylang/ruby`.** It is the Ruby team's own image, so new releases
+  arrive there first. The Ruby Dev Container Feature builds Ruby from source
+  instead. The image runs as root, so the `common-utils` Feature adds the `vscode`
+  user, and gems install into a world-writable `/usr/local/bundle`.
+- **Features, not several templates, for combining.** No official template
+  composes several stacks. Dev Container Features are the standard composition
+  mechanism, and Dependabot updates them.
+- **Node LTS by default.** LTS releases get about 30 months of fixes; "Current"
+  releases can end within a year, and native packages lag on brand-new majors.
+- **Rails defaults to SQLite.** Postgres adds client libraries and Docker.
+- **Claude state on the host.** A devcontainer's own filesystem is deleted on
+  every rebuild, and Docker volumes can be lost to prunes or a changed
+  `devcontainerId`. A bind mount of a plain host folder cannot. The folder is
+  outside the repo because it holds credentials. See
+  [prompts/move-claude-config-to-host-bind-mount.md](prompts/move-claude-config-to-host-bind-mount.md)
+  to convert an older project.
+- **Dependencies live in the devcontainer.** Tools are rebuilt reproducibly for
+  every developer and every AI, not installed by hand in one workspace.
+
+## Scheduled checks
+
+No AI runs on a schedule. Each project gets:
+- **Dependabot** (weekly): Dev Container Features and the lockfile, bundler, npm,
+  Go modules, GitHub Actions, plus security updates.
+- **`scheduled-checks.yml`** (weekly, GitHub Actions): `check-versions.sh` opens
+  an issue when a pinned language version is behind, and Trivy scans the base
+  image and repository for high and critical vulnerabilities (results in the
+  Security tab).
+
+Turn on Dependabot alerts and security updates for the repository (Settings →
+Code security), or with `gh`: see PROMPT.md step 8.
+
+## Layout
+
+```
+README.md  PROMPT.md
+stacks/       one JSON fragment per stack
+templates/    files copied into every project (Claude mount scripts, checks, workflow)
+script/       new-devcontainer, latest-versions
+prompts/      one-off prompts (convert an older project's Claude volume)
+```

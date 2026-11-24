@@ -1,0 +1,12 @@
+{
+  "description": "HTML/CSS/JS project: Node (LTS unless asked otherwise) for tooling, a static-server port, formatting and linting extensions.",
+  "needs_versions": ["node"],
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {"version": "{node}"}
+  },
+  "extensions": ["esbenp.prettier-vscode", "dbaeumer.vscode-eslint"],
+  "post_create": {"npm": "if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi"},
+  "checks": ["node --version", "npm --version"],
+  "dependabot": [{"ecosystem": "npm", "directory": "/"}],
+  "ports": [8000]
+}

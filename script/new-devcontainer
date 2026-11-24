@@ -1,0 +1,196 @@
+#!/usr/bin/env python3
+"""Create a project's .devcontainer/ (and scheduled-check files) from stacks.
+
+    script/new-devcontainer --project-dir ~/develop/foo --stacks go,ruby,rails \
+        [--name foo] [--node lts|latest|<major>] [--database sqlite|postgres] \
+        [--browser-tests] [--docker-in-docker] [--ubuntu noble] [--dry-run]
+
+Stacks are small JSON fragments in stacks/ that compose: apt packages, Dev
+Container Features, extensions, ports, and post-create steps are merged, and the
+stack with the highest base_image priority (Ruby) supplies the image. Versions
+are looked up fresh by script/latest-versions. python3 standard library only.
+"""
+import argparse, json, os, pathlib, subprocess, sys
+
+KIT = pathlib.Path(__file__).resolve().parent.parent
+DEFAULT_BASE = "mcr.microsoft.com/devcontainers/base:ubuntu"
+
+def load_stacks(names):
+    stacks, seen = {}, []
+    def add(name):
+        path = KIT / "stacks" / f"{name}.json"
+        if not path.exists():
+            sys.exit(f"Unknown stack '{name}'. Available: " +
+                     ", ".join(p.stem for p in sorted((KIT / 'stacks').glob('*.json'))))
+        stack = json.loads(path.read_text())
+        for required in stack.get("requires", []):
+            add(required)
+        if name not in stacks:
+            stacks[name] = stack
+            seen.append(name)
+    for name in names:
+        add(name)
+    return [stacks[n] for n in seen], seen
+
+def lookup_versions(ubuntu):
+    out = subprocess.check_output([sys.executable, str(KIT / "script" / "latest-versions"), ubuntu], text=True)
+    return json.loads(out)
+
+def fill(value, values):
+    if isinstance(value, str):
+        for key, replacement in values.items():
+            value = value.replace("{" + key + "}", str(replacement))
+        return value
+    if isinstance(value, list):
+        return [fill(v, values) for v in value]
+    if isinstance(value, dict):
+        return {k: fill(v, values) for k, v in value.items()}
+    return value
+
+def compose(stacks, args, versions):
+    node = {"lts": versions["node_lts"], "latest": versions["node_latest"]}.get(args.node, args.node)
+    values = {"go": versions["go"], "ruby": versions["ruby"], "ruby_image": versions["ruby_image"],
+              "rails": versions["rails"], "node": node}
+    chosen = {"database": args.database, "browser_tests": "yes" if args.browser_tests else "no"}
+    parts = []
+    for stack in stacks:
+        parts.append(stack)
+        for option, answers in stack.get("options", {}).items():
+            if chosen.get(option) in answers:
+                parts.append(answers[chosen[option]])
+    if args.docker_in_docker:
+        parts.append({"features": {"ghcr.io/devcontainers/features/docker-in-docker:2": {"moby": False}}})
+
+    merged = {"apt": set(), "features": {}, "extensions": [], "ports": [], "post_create": {},
+              "checks": [], "dockerfile": [], "dependabot": []}
+    base_image, base_priority = DEFAULT_BASE, -1
+    for part in parts:
+        part = fill(part, values)
+        merged["apt"].update(part.get("apt", []))
+        merged["features"].update(part.get("features", {}))
+        merged["extensions"] += [e for e in part.get("extensions", []) if e not in merged["extensions"]]
+        merged["ports"] += [p for p in part.get("ports", []) if p not in merged["ports"]]
+        merged["post_create"].update(part.get("post_create", {}))
+        merged["checks"] += part.get("checks", [])
+        merged["dockerfile"] += part.get("dockerfile", [])
+        merged["dependabot"] += part.get("dependabot", [])
+        if part.get("base_image", {}).get("priority", -1) > base_priority:
+            base_priority = part["base_image"]["priority"]
+            base_image = part["base_image"]["image"]
+    merged["base_image"] = base_image
+    return merged, values
+
+def devcontainer_json(args, merged):
+    name = args.name
+    features = {"ghcr.io/devcontainers/features/common-utils:2": {"username": "vscode", "uid": "1000", "gid": "1000"}}
+    features.update(merged["features"])
+    post = {"link shared claude rules": "bash .devcontainer/link-shared-claude-rules.sh",
+            "check dependencies": "bash .devcontainer/check-dependencies.sh"}
+    post.update(merged["post_create"])
+    config = {
+        "name": name,
+        "build": {"dockerfile": "Dockerfile", "context": "."},
+        "initializeCommand": "bash .devcontainer/create-host-claude-folders.sh",
+        "mounts": [
+            f"source=${{localEnv:HOME}}/.claude-devcontainers/{name},target=/home/vscode/.claude,type=bind",
+            "source=${localEnv:HOME}/.claude-devcontainers/shared,target=/home/vscode/.claude-shared,type=bind,readonly",
+        ],
+        "containerEnv": {"CLAUDE_CONFIG_DIR": "/home/vscode/.claude"},
+        "features": features,
+        "remoteUser": "vscode",
+        "forwardPorts": merged["ports"],
+        "postCreateCommand": post,
+        "customizations": {"vscode": {"extensions": merged["extensions"] + ["Anthropic.claude-code"]}},
+    }
+    return json.dumps(config, indent=2) + "\n"
+
+def dockerfile(merged):
+    always = ["ca-certificates", "curl", "git", "jq", "sudo"]
+    packages = sorted(set(always) | merged["apt"])
+    lines = [f"FROM {merged['base_image']}", "",
+             "ARG DEBIAN_FRONTEND=noninteractive", "",
+             "RUN apt-get update \\", "    && apt-get install -y --no-install-recommends \\"]
+    lines += [f"        {p} \\" for p in packages]
+    lines += ["    && rm -rf /var/lib/apt/lists/*", ""]
+    lines += [line for line in merged["dockerfile"]]
+    return "\n".join(lines).rstrip() + "\n"
+
+def check_dependencies(merged):
+    lines = ["#!/usr/bin/env bash", "set -euo pipefail", "",
+             "# Smoke check after a rebuild: prints each tool's version and fails if one is",
+             "# missing. Generated by devcontainer-kit; add project-specific checks below.", "",
+             "show_version() {", "  printf '==> %-28s' \"$1\"", "  shift", "  \"$@\" 2>&1 | sed -n '1p'", "}", ""]
+    for check in merged["checks"] + ["git --version", "jq --version"]:
+        lines.append(f"show_version '{check.split()[0]}' {check}")
+    lines += ["", "printf '\\nAll dependency checks passed.\\n'"]
+    return "\n".join(lines) + "\n"
+
+def dependabot(merged):
+    entries = [("devcontainers", "/")] + [(d["ecosystem"], d["directory"]) for d in merged["dependabot"]] \
+              + [("github-actions", "/")]
+    lines = ["version: 2", "updates:"]
+    for ecosystem, directory in entries:
+        lines += [f"  - package-ecosystem: {ecosystem}", f"    directory: \"{directory}\"",
+                  "    schedule:", "      interval: weekly", "    open-pull-requests-limit: 10"]
+    return "\n".join(lines) + "\n"
+
+def planned_files(args, merged, values, stack_names):
+    pinned = {k: v for k, v in values.items() if k in ("ruby", "go", "rails", "node") and
+              (k in ("node",) and "web" in stack_names or k in ("ruby", "rails", "go") and k in stack_names or k == "ruby" and "rails" in stack_names)}
+    files = {
+        ".devcontainer/devcontainer.json": devcontainer_json(args, merged),
+        ".devcontainer/Dockerfile": dockerfile(merged),
+        ".devcontainer/check-dependencies.sh": check_dependencies(merged),
+        ".devcontainer/versions.json": json.dumps(pinned, indent=2) + "\n",
+        ".github/dependabot.yml": dependabot(merged),
+    }
+    for name in ("create-host-claude-folders.sh", "link-shared-claude-rules.sh", "check-versions.sh"):
+        files[f".devcontainer/{name}"] = (KIT / "templates" / name).read_text().replace("@@NAME@@", args.name)
+    for name in ("claude-config-README.md", "shared-claude-rules-starter.md"):
+        files[f".devcontainer/{name}"] = (KIT / "templates" / name).read_text()
+    files[".github/workflows/scheduled-checks.yml"] = (KIT / "templates" / "scheduled-checks.yml").read_text()
+    return files
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--project-dir", required=True)
+    parser.add_argument("--stacks", required=True, help="comma list, e.g. go,ruby,rails,web")
+    parser.add_argument("--name", help="defaults to the project folder name")
+    parser.add_argument("--node", default="lts", help="lts (default), latest, or a major such as 24")
+    parser.add_argument("--database", default="sqlite", choices=["sqlite", "postgres"])
+    parser.add_argument("--browser-tests", action="store_true")
+    parser.add_argument("--docker-in-docker", action="store_true")
+    parser.add_argument("--ubuntu", default="noble", help="Ubuntu release for the rubylang image")
+    parser.add_argument("--force", action="store_true", help="overwrite existing files")
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+
+    project = pathlib.Path(args.project_dir).expanduser().resolve()
+    args.name = (args.name or project.name).replace(",", "-").replace(" ", "-")
+    stacks, names = load_stacks([s.strip() for s in args.stacks.split(",") if s.strip()])
+    versions = lookup_versions(args.ubuntu)
+    merged, values = compose(stacks, args, versions)
+    files = planned_files(args, merged, values, names)
+
+    existing = [f for f in files if (project / f).exists()]
+    if existing and not args.force and not args.dry_run:
+        sys.exit("These files exist; rerun with --force to overwrite:\n  " + "\n  ".join(existing))
+    for relative, content in files.items():
+        print(("would write " if args.dry_run else "wrote ") + relative)
+        if not args.dry_run:
+            target = project / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(content)
+            if relative.endswith(".sh"):
+                target.chmod(0o755)
+    agents = project / "AGENTS.md"
+    snippet = (KIT / "templates" / "agents-devcontainer-rules.md").read_text()
+    if not args.dry_run and "## Devcontainer rules" not in (agents.read_text() if agents.exists() else ""):
+        with agents.open("a") as handle:
+            handle.write(("\n" if agents.exists() else "# Rules for AI assistants\n\n") + snippet)
+        print("updated AGENTS.md")
+    print("\nNext: review the files, then rebuild the devcontainer, wait for it, and run "
+          ".devcontainer/check-dependencies.sh.")
+
+if __name__ == "__main__":
+    main()

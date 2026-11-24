@@ -1,0 +1,12 @@
+{
+  "description": "Go, from the official devcontainers go Feature.",
+  "needs_versions": ["go"],
+  "features": {
+    "ghcr.io/devcontainers/features/go:1": {"version": "{go}"}
+  },
+  "extensions": ["golang.go"],
+  "post_create": {"go modules": "[ ! -f go.mod ] || go mod download"},
+  "checks": ["go version"],
+  "dependabot": [{"ecosystem": "gomod", "directory": "/"}],
+  "ports": []
+}

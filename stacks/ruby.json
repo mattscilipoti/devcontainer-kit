@@ -1,0 +1,41 @@
+{
+  "description": "Ruby from the Ruby team's own rubylang/ruby image (the -dev variant has the compiler and headers gems need).",
+  "needs_versions": [
+    "ruby"
+  ],
+  "base_image": {
+    "priority": 100,
+    "image": "{ruby_image}"
+  },
+  "apt": [
+    "libyaml-dev",
+    "libssl-dev",
+    "libffi-dev",
+    "zlib1g-dev"
+  ],
+  "extensions": [
+    "Shopify.ruby-lsp"
+  ],
+  "post_create": {
+    "bundle": "[ ! -f Gemfile ] || bundle install"
+  },
+  "checks": [
+    "ruby --version",
+    "gem --version",
+    "bundle --version"
+  ],
+  "dependabot": [
+    {
+      "ecosystem": "bundler",
+      "directory": "/"
+    }
+  ],
+  "ports": [],
+  "dockerfile": [
+    "# Gems install into a folder the non-root vscode user can write, so `bundle install`",
+    "# works in the container. The rubylang image runs as root and installs gems under /usr/local.",
+    "ENV GEM_HOME=/usr/local/bundle BUNDLE_PATH=/usr/local/bundle BUNDLE_APP_CONFIG=/usr/local/bundle",
+    "ENV PATH=/usr/local/bundle/bin:$PATH",
+    "RUN mkdir -p /usr/local/bundle && chmod -R a+rwX /usr/local/bundle"
+  ]
+}

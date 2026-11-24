@@ -1,0 +1,18 @@
+{
+  "description": "Ruby on Rails. Pulls in the ruby stack. SQLite by default; --database postgres adds the client libraries and Docker.",
+  "requires": ["ruby"],
+  "needs_versions": ["rails"],
+  "apt": ["libsqlite3-dev", "sqlite3", "libvips-dev"],
+  "dockerfile": ["RUN gem install rails -v {rails} --no-document"],
+  "post_create": {},
+  "checks": ["rails --version", "sqlite3 --version"],
+  "ports": [3000],
+  "options": {
+    "database": {
+      "postgres": {"apt": ["libpq-dev", "postgresql-client"], "features": {"ghcr.io/devcontainers/features/docker-in-docker:2": {"moby": false}}, "checks": ["psql --version"]}
+    },
+    "browser_tests": {
+      "yes": {"apt": ["chromium", "chromium-driver", "fonts-liberation"], "checks": ["chromium --version"]}
+    }
+  }
+}
