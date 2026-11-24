@@ -6,6 +6,49 @@ project, so the work can continue here, in this repo
 `~/develop/devcontainer-kit/`). Delete or replace this file once the open
 decisions below are settled.
 
+## Update: 2026-11-24
+
+- The owner chose to leave this kit without its own devcontainer for now, so it
+  keeps simple access to host folders. Revisit only if host dependencies become
+  insufficient.
+- `script/test-generation` checks every non-empty stack combination and the
+  Rails browser-tests option with the default database, SQLite.
+- A `rails,web --browser-tests` Dockerfile built; Rails, SQLite, Chromium and
+  ChromeDriver ran, and a non-root user could write to `/usr/local/bundle`.
+- A generated `go,rails,web --browser-tests --docker-in-docker` project opened
+  in VS Code and rebuilt. The dependency check and post-create commands passed;
+  Claude bind mounts, shared-rule link, bundle permissions, and Docker-in-Docker
+  were checked. This combined test does not replace testing each stack alone.
+- The standalone `go` stack also rebuilt in VS Code and passed its dependency
+  and shared-rule checks. Its scratch project is at
+  `~/develop/devcontainer-kit-vscode-go-validation/`.
+- The standalone `ruby` stack rebuilt in VS Code and passed its dependency,
+  shared-rule, and non-root bundle-directory permission checks. Its scratch
+  project is at `~/develop/devcontainer-kit-vscode-ruby-validation/`.
+- The standalone `rails` stack rebuilt in VS Code with default SQLite and
+  passed its dependency, shared-rule, and non-root bundle-directory permission
+  checks. Its scratch project is at
+  `~/develop/devcontainer-kit-vscode-rails-validation/`.
+- The standalone `web` stack rebuilt in VS Code and passed its dependency and
+  shared-rule checks. Its scratch project is at
+  `~/develop/devcontainer-kit-vscode-web-validation/`.
+- Generation preserved unrelated scratch-project files and existing `AGENTS.md`
+  content, and refused to overwrite generated files without `--force`.
+- Docker Desktop could not mount the scratch workspace under `/tmp`; a scratch
+  project under `~/develop/` worked. The VS Code validation project remains at
+  `~/develop/devcontainer-kit-vscode-validation/` with its container running.
+- A live workflow run in `mattscilipoti/devcontainer-kit-workflow-test-`
+  passed the current-version job, but the scan job could not start because
+  Trivy action `v0.28.0` depended on a deleted setup-action tag. Updated the
+  template to the latest Trivy action, `v0.36.0`, and added `pipefail` so
+  outdated-version failures are not hidden by `tee`. A second run completed
+  both Trivy scans, but GitHub rejected their combined SARIF upload because
+  the reports had the same category. The template now uploads each separately
+  and limits SARIF severity; a third run passed both scans and uploads.
+  Issue creation remains unverified. The public test repository has an active
+  weekly workflow, and GitHub reported a critical Dependabot alert there.
+  Do not edit `on_board_with_matt` or push without asking.
+
 ## Starting here
 
 This file was written inside the `on_board_with_matt` devcontainer, where the kit
@@ -92,8 +135,7 @@ State as of the end of the 2026-11-24 session (Debian switch included).
 - Opening a generated project in VS Code: the `common-utils` Feature creating the
   `vscode` user on a Debian base, the bind mounts, `postCreateCommand`, and the
   Go, Node, and docker-in-docker Features.
-- The GitHub workflow (the `aquasecurity/trivy-action@0.28.0` version was chosen
-  from memory; `scheduled-checks.yml` has never run).
+- The GitHub workflow (`scheduled-checks.yml` has never run; see the update above).
 - That `script/new-devcontainer` leaves an existing project's other files alone.
 
 ## Open decisions
@@ -103,18 +145,14 @@ State as of the end of the 2026-11-24 session (Debian switch included).
    are Ubuntu-only, and Ubuntu's `chromium` is a snap stub that fails in
    containers); other stacks use `debian:stable-slim`. The codename comes from
    `script/latest-versions`. Ubuntu is not supported unless the owner asks.
-2. **Dogfooding.** The kit has no devcontainer of its own and no `python` stack.
-   Add a small `python` stack and generate the kit's own devcontainer, or leave it.
-3. **Add a test.** A script that generates every stack combination into a scratch
-   folder and checks the JSON and shell syntax would catch regressions cheaply.
+2. ~~Dogfooding.~~ Leave the kit without its own devcontainer for now.
+3. ~~Add a test.~~ Added `script/test-generation`.
 
 ## Next steps
 
-1. Settle decisions 2 and 3.
-2. Work through the untested list: build, then open each stack in VS Code, rebuild,
-   run `.devcontainer/check-dependencies.sh`, and fix what breaks.
-3. Migrate `on_board_with_matt` (plan below).
-4. Commit and push this repo. The owner pushes, or asks first.
+1. Work through the remaining untested items in the update above.
+2. Ask before migrating `on_board_with_matt` (plan below).
+3. Commit and push this repo only with the owner's approval.
 
 ## Migrating on_board_with_matt (do not run the generator over it)
 
