@@ -49,9 +49,10 @@ the project needs to keep it.
 - The opt-in `web --lighthouse` stack rebuilt and passed its dependency checks
   and a Lighthouse audit of a trusted local page using an explicit
   `--headless --no-sandbox` flag. Docker's default seccomp profile is retained.
-  The opt-in also generates a quarterly sandbox review reminder; its issue
-  creation and duplicate handling were tested locally with a fake GitHub CLI,
-  but the reminder workflow has not run on GitHub.
+  The opt-in also generates a quarterly sandbox review reminder. Two live
+  workflow runs in the public test repository created one review issue and
+  then detected it without creating a duplicate. The test issue was closed and
+  the temporary reminder workflow removed.
 - Generation preserved unrelated scratch-project files and existing `AGENTS.md`
   content, and refused to overwrite generated files without `--force`.
 - Docker Desktop could not mount the scratch workspace under `/tmp`; a scratch
