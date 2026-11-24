@@ -172,10 +172,15 @@ the host kit may have unpushed changes.
 ```bash
 set -e
 kit_root="$(mktemp -d /tmp/devcontainer-kit-migration.XXXXXX)"
-git clone git@github.com:mattscilipoti/devcontainer-kit.git "$kit_root/kit"
+git clone https://github.com/mattscilipoti/devcontainer-kit.git "$kit_root/kit"
+git -C "$kit_root/kit" remote set-url --push origin no-push://read-only-reference
 git -C "$kit_root/kit" rev-parse HEAD
 printf 'Kit and reference scratch directory: %s\n' "$kit_root"
 ```
+
+The invalid push URL prevents an accidental `git push` from this clone; it is a
+reminder, not a security boundary. HTTPS may still require existing GitHub
+authentication for a private repository; do not put credentials in the URL.
 
 Keep the printed path for the session; shell variables may not persist between
 tool calls. Read `AGENTS.md` and `README.md` in the clone, and use this copied
@@ -184,7 +189,7 @@ clone's `script/new-devcontainer` and its `stacks/` and `templates/` for the
 comparison below. Generate the reference into a new directory under the printed
 scratch path, **not** into `on_board_with_matt`.
 
-If SSH authentication or network access fails, stop and ask the owner to copy
+If HTTPS authentication or network access fails, stop and ask the owner to copy
 the tracked kit files into a new scratch folder in the project workspace from
 the host. For example, on the host (replace `<project>` with the actual host
 path, and do not run this if the destination already exists):
