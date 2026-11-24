@@ -53,6 +53,13 @@ RubyGems, Docker Hub), then writes `.devcontainer/`, `.github/dependabot.yml`,
 `.github/workflows/scheduled-checks.yml`, and a devcontainer section in
 `AGENTS.md`. Needs only `python3` and network access.
 
+## Validate generation
+
+Run `script/test-generation` to generate every non-empty stack combination in a
+temporary folder and check generated JSON and shell syntax. It also checks
+Rails browser-tests with SQLite. The script looks up current
+versions, so it needs network access.
+
 ## Why the choices
 
 - **Debian slim, strongly preferred, for every stack.** It is smaller and steadier

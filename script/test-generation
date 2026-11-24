@@ -1,0 +1,87 @@
+#!/usr/bin/env python3
+"""Generate every stack combination in a scratch directory and validate its files."""
+import importlib.util
+import itertools
+import json
+import pathlib
+import subprocess
+import sys
+import tempfile
+from importlib.machinery import SourceFileLoader
+
+sys.dont_write_bytecode = True
+KIT = pathlib.Path(__file__).resolve().parent.parent
+GENERATOR_PATH = KIT / "script" / "new-devcontainer"
+SPEC = importlib.util.spec_from_loader(
+    "new_devcontainer", SourceFileLoader("new_devcontainer", str(GENERATOR_PATH))
+)
+GENERATOR = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(GENERATOR)
+
+
+def generate_case(scratch, index, names, versions, browser_tests=False):
+    case_dir = scratch / str(index)
+    arguments = [
+        "--project-dir",
+        str(case_dir),
+        "--stacks",
+        ",".join(names),
+        "--name",
+        f"generation-test-{index}",
+    ]
+    if browser_tests:
+        arguments.append("--browser-tests")
+    args = GENERATOR.build_parser().parse_args(arguments)
+    stacks, loaded_names = GENERATOR.load_stacks(names)
+    merged, values = GENERATOR.compose(stacks, args, versions)
+    files = GENERATOR.planned_files(args, merged, values, loaded_names)
+
+    if "rails" in loaded_names:
+        config = json.loads(files[".devcontainer/devcontainer.json"])
+        if (
+            "ghcr.io/devcontainers/features/docker-in-docker:2" in config["features"]
+            or "libpq-dev" in files[".devcontainer/Dockerfile"]
+        ):
+            raise AssertionError("Rails default generation unexpectedly enabled Postgres")
+
+    for relative, content in files.items():
+        target = case_dir / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content)
+
+    for path in case_dir.rglob("*.json"):
+        json.loads(path.read_text())
+    for path in case_dir.rglob("*.sh"):
+        subprocess.run(["bash", "-n", str(path)], check=True)
+
+
+def main():
+    versions = GENERATOR.lookup_versions()
+    stack_names = sorted(path.stem for path in (KIT / "stacks").glob("*.json"))
+    combinations = [
+        combo
+        for size in range(1, len(stack_names) + 1)
+        for combo in itertools.combinations(stack_names, size)
+    ]
+
+    with tempfile.TemporaryDirectory(prefix="devcontainer-kit-") as temp:
+        scratch = pathlib.Path(temp)
+        for index, combo in enumerate(combinations):
+            generate_case(scratch, index, combo, versions)
+
+        generate_case(
+            scratch,
+            len(combinations),
+            ("rails", "web"),
+            versions,
+            browser_tests=True,
+        )
+
+    print(
+        f"Validated {len(combinations)} stack combinations and "
+        "Rails browser-tests with SQLite."
+    )
+
+
+if __name__ == "__main__":
+    main()
