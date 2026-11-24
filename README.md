@@ -33,7 +33,7 @@ extensions, ports, and setup steps into one devcontainer.
 | Stack | What it adds |
 |---|---|
 | `go` | Go from the official `go` Feature |
-| `ruby` | the Ruby team's `rubylang/ruby` image (`-dev` variant) as the base |
+| `ruby` | the official `ruby:<version>-slim-<debian>` image as the base (every other stack uses `debian:stable-slim`) |
 | `rails` | needs `ruby`; Rails gem, SQLite and libvips; options for Postgres and browser tests |
 | `web` | HTML/CSS/JS: Node (LTS by default), Prettier and ESLint, a static-server port |
 
@@ -55,10 +55,17 @@ RubyGems, Docker Hub), then writes `.devcontainer/`, `.github/dependabot.yml`,
 
 ## Why the choices
 
-- **Ruby from `rubylang/ruby`.** It is the Ruby team's own image, so new releases
-  arrive there first. The Ruby Dev Container Feature builds Ruby from source
-  instead. The image runs as root, so the `common-utils` Feature adds the `vscode`
-  user, and gems install into a world-writable `/usr/local/bundle`.
+- **Debian slim, strongly preferred, for every stack.** It is smaller and steadier
+  than Ubuntu, and its packages work in containers (Ubuntu's `chromium` is a snap
+  stub that does not run in one, which breaks browser tests). Use Ubuntu only if a
+  project requires it, and say why in a comment. `script/latest-versions` finds
+  the current stable codename (now `trixie`).
+- **Ruby from the official `ruby` image.** Docker's `ruby:<version>-slim-trixie`
+  tracks Ruby releases within days and is on Debian. The Ruby team's own
+  `rubylang/ruby` image is Ubuntu-only, and the Ruby Dev Container Feature builds
+  Ruby from source. The slim image has no compiler, so the stack adds
+  `build-essential`. It runs as root, so the `common-utils` Feature adds the
+  `vscode` user, and gems install into a world-writable `/usr/local/bundle`.
 - **Features, not several templates, for combining.** No official template
   composes several stacks. Dev Container Features are the standard composition
   mechanism, and Dependabot updates them.

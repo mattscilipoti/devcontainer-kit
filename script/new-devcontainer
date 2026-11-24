@@ -3,7 +3,7 @@
 
     script/new-devcontainer --project-dir ~/develop/foo --stacks go,ruby,rails \
         [--name foo] [--node lts|latest|<major>] [--database sqlite|postgres] \
-        [--browser-tests] [--docker-in-docker] [--ubuntu noble] [--dry-run]
+        [--browser-tests] [--docker-in-docker] [--dry-run]
 
 Stacks are small JSON fragments in stacks/ that compose: apt packages, Dev
 Container Features, extensions, ports, and post-create steps are merged, and the
@@ -13,7 +13,9 @@ are looked up fresh by script/latest-versions. python3 standard library only.
 import argparse, json, os, pathlib, subprocess, sys
 
 KIT = pathlib.Path(__file__).resolve().parent.parent
-DEFAULT_BASE = "mcr.microsoft.com/devcontainers/base:ubuntu"
+# Debian everywhere, on purpose: smaller and steadier than Ubuntu, and real Debian
+# packages (Ubuntu's chromium is a snap stub that does not work in containers).
+DEFAULT_BASE = "debian:stable-slim"
 
 def load_stacks(names):
     stacks, seen = {}, []
@@ -32,8 +34,8 @@ def load_stacks(names):
         add(name)
     return [stacks[n] for n in seen], seen
 
-def lookup_versions(ubuntu):
-    out = subprocess.check_output([sys.executable, str(KIT / "script" / "latest-versions"), ubuntu], text=True)
+def lookup_versions():
+    out = subprocess.check_output([sys.executable, str(KIT / "script" / "latest-versions")], text=True)
     return json.loads(out)
 
 def fill(value, values):
@@ -160,7 +162,6 @@ def main():
     parser.add_argument("--database", default="sqlite", choices=["sqlite", "postgres"])
     parser.add_argument("--browser-tests", action="store_true")
     parser.add_argument("--docker-in-docker", action="store_true")
-    parser.add_argument("--ubuntu", default="noble", help="Ubuntu release for the rubylang image")
     parser.add_argument("--force", action="store_true", help="overwrite existing files")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
@@ -168,7 +169,7 @@ def main():
     project = pathlib.Path(args.project_dir).expanduser().resolve()
     args.name = (args.name or project.name).replace(",", "-").replace(" ", "-")
     stacks, names = load_stacks([s.strip() for s in args.stacks.split(",") if s.strip()])
-    versions = lookup_versions(args.ubuntu)
+    versions = lookup_versions()
     merged, values = compose(stacks, args, versions)
     files = planned_files(args, merged, values, names)
 

@@ -13,7 +13,7 @@
   as if the new dependency were installed.
 - **Use the latest release** of each language and dependency when adding one,
   looked up now (`.devcontainer/check-versions.sh`, endoflife.date, the package
-  registry), not remembered. Ruby comes from the Ruby team's `rubylang/ruby` image.
+  registry), not remembered. Ruby comes from the official `ruby` image on Debian slim.
 - **Claude sign-in and history live on the host**, in
   `~/.claude-devcontainers/<project>/`, outside the repository. Never commit it.
 - **Scheduled checks:** `.github/workflows/scheduled-checks.yml` and Dependabot

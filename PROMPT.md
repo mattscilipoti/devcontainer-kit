@@ -47,7 +47,7 @@ Rails: the first answer decides.
    automatically).
 
 Versions are not asked: the kit uses the latest supported release of each, looked
-up at run time. Ruby comes from the Ruby team's `rubylang/ruby` image; say so to
+up at run time. Ruby comes from the official Docker `ruby` image on Debian slim; say so to
 anyone who asks why.
 
 ## 3. Generate

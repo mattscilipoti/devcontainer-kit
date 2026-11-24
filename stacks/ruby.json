@@ -1,5 +1,5 @@
 {
-  "description": "Ruby from the Ruby team's own rubylang/ruby image (the -dev variant has the compiler and headers gems need).",
+  "description": "Ruby from the official Docker ruby image on Debian slim (tracks Ruby releases within days). The slim variant has no compiler, so build tools are added.",
   "needs_versions": [
     "ruby"
   ],
@@ -8,6 +8,7 @@
     "image": "{ruby_image}"
   },
   "apt": [
+    "build-essential",
     "libyaml-dev",
     "libssl-dev",
     "libffi-dev",
@@ -33,7 +34,7 @@
   "ports": [],
   "dockerfile": [
     "# Gems install into a folder the non-root vscode user can write, so `bundle install`",
-    "# works in the container. The rubylang image runs as root and installs gems under /usr/local.",
+    "# works in the container. The ruby image runs as root and installs gems under /usr/local.",
     "ENV GEM_HOME=/usr/local/bundle BUNDLE_PATH=/usr/local/bundle BUNDLE_APP_CONFIG=/usr/local/bundle",
     "ENV PATH=/usr/local/bundle/bin:$PATH",
     "RUN mkdir -p /usr/local/bundle && chmod -R a+rwX /usr/local/bundle"

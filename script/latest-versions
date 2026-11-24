@@ -3,7 +3,8 @@
 
 Why these sources: endoflife.date is a public API kept current for languages, so
 the kit never copies a version from an old template; RubyGems has Rails; Docker
-Hub says whether a rubylang/ruby tag exists yet (new patch releases can lag).
+Hub says whether an official ruby image tag exists yet (new patch releases can lag).
+Everything is Debian: the kit strongly prefers it (see README, "Why the choices").
 """
 import datetime, json, sys, urllib.request
 
@@ -24,26 +25,33 @@ def node_versions(today):
     lts = next(c for c in cycles if isinstance(c.get("lts"), str) and c["lts"] <= today)
     return lts["cycle"], cycles[0]["cycle"]
 
-def rubylang_tag_exists(tag):
+def debian_codename(today):
+    """Codename of the newest released, still supported Debian (what stable-slim is)."""
+    released = [c for c in get("https://endoflife.date/api/debian.json")
+                if c["releaseDate"] <= today and supported(c, today)]
+    return released[0]["codename"].lower()
+
+def ruby_tag_exists(tag):
     try:
-        get(f"https://hub.docker.com/v2/repositories/rubylang/ruby/tags/{tag}")
+        get(f"https://hub.docker.com/v2/repositories/library/ruby/tags/{tag}")
         return True
     except Exception:
         return False
 
-def main(ubuntu="noble"):
+def main():
     today = datetime.date.today().isoformat()
     ruby = newest_supported("ruby", today)
     go = newest_supported("go", today)
     node_lts, node_latest = node_versions(today)
-    exact = f"{ruby['latest']}-dev-{ubuntu}"
-    floating = f"{ruby['cycle']}-dev-{ubuntu}"
-    image = exact if rubylang_tag_exists(exact) else floating
+    debian = debian_codename(today)
+    exact = f"{ruby['latest']}-slim-{debian}"
+    floating = f"{ruby['cycle']}-slim-{debian}"
+    image = exact if ruby_tag_exists(exact) else floating
     print(json.dumps({
         "checked_on": today,
-        "ubuntu": ubuntu,
+        "debian": debian,
         "ruby": ruby["latest"],
-        "ruby_image": f"rubylang/ruby:{image}",
+        "ruby_image": f"ruby:{image}",
         "go": go["latest"],
         "node_lts": node_lts,
         "node_latest": node_latest,
@@ -51,4 +59,4 @@ def main(ubuntu="noble"):
     }, indent=2))
 
 if __name__ == "__main__":
-    main(*sys.argv[1:2])
+    main()
