@@ -4,6 +4,7 @@ import importlib.util
 import itertools
 import json
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -35,6 +36,13 @@ def generate_case(scratch, index, names, versions, browser_tests=False):
     stacks, loaded_names = GENERATOR.load_stacks(names)
     merged, values = GENERATOR.compose(stacks, args, versions)
     files = GENERATOR.planned_files(args, merged, values, loaded_names)
+
+    workflow = files[".github/workflows/scheduled-checks.yml"]
+    action_refs = re.findall(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", workflow, re.MULTILINE)
+    if not action_refs or any(
+        not re.fullmatch(r"[^@\s]+@[0-9a-f]{40}", ref) for ref in action_refs
+    ):
+        raise AssertionError("Scheduled workflow actions must use full commit SHAs")
 
     if "rails" in loaded_names:
         config = json.loads(files[".devcontainer/devcontainer.json"])
