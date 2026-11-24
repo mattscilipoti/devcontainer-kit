@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Compares the versions pinned in .devcontainer/versions.json with the newest
-# supported releases (endoflife.date, RubyGems). Exits 1 and prints what is
+# supported releases (endoflife.date, RubyGems, npm). Exits 1 and prints what is
 # behind. Runs in CI weekly (.github/workflows/scheduled-checks.yml) and by hand.
 # Needs curl and jq.
 set -euo pipefail
@@ -33,6 +33,10 @@ if [ -n "$(pinned node)" ]; then
   newest_lts="$(curl -fsS https://endoflife.date/api/nodejs.json | jq -r --arg today "$(date -u +%F)" \
     '[.[] | select((.lts | type == "string") and .lts <= $today and (.eol == false or .eol >= $today))][0].cycle')"
   compare "node(LTS)" "$(pinned node)" "$newest_lts"
+fi
+if [ -n "$(pinned lighthouse)" ]; then
+  newest_lighthouse="$(curl -fsS https://registry.npmjs.org/lighthouse/latest | jq -er .version)"
+  compare lighthouse "$(pinned lighthouse)" "$newest_lighthouse"
 fi
 
 exit "$behind"

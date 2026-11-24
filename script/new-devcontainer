@@ -3,7 +3,7 @@
 
     script/new-devcontainer --project-dir ~/develop/foo --stacks go,ruby,rails \
         [--name foo] [--node lts|latest|<major>] [--database sqlite|postgres] \
-        [--browser-tests] [--docker-in-docker] [--dry-run]
+        [--browser-tests] [--lighthouse] [--docker-in-docker] [--dry-run]
 
 Stacks are small JSON fragments in stacks/ that compose: apt packages, Dev
 Container Features, extensions, ports, and post-create steps are merged, and the
@@ -34,8 +34,11 @@ def load_stacks(names):
         add(name)
     return [stacks[n] for n in seen], seen
 
-def lookup_versions():
-    out = subprocess.check_output([sys.executable, str(KIT / "script" / "latest-versions")], text=True)
+def lookup_versions(lighthouse=False):
+    command = [sys.executable, str(KIT / "script" / "latest-versions")]
+    if lighthouse:
+        command.append("--lighthouse")
+    out = subprocess.check_output(command, text=True)
     return json.loads(out)
 
 def fill(value, values):
@@ -53,7 +56,10 @@ def compose(stacks, args, versions):
     node = {"lts": versions["node_lts"], "latest": versions["node_latest"]}.get(args.node, args.node)
     values = {"go": versions["go"], "ruby": versions["ruby"], "ruby_image": versions["ruby_image"],
               "rails": versions["rails"], "node": node}
-    chosen = {"database": args.database, "browser_tests": "yes" if args.browser_tests else "no"}
+    if args.lighthouse:
+        values["lighthouse"] = versions["lighthouse"]
+    chosen = {"database": args.database, "browser_tests": "yes" if args.browser_tests else "no",
+              "lighthouse": "yes" if args.lighthouse else "no"}
     parts = []
     for stack in stacks:
         parts.append(stack)
@@ -63,7 +69,7 @@ def compose(stacks, args, versions):
     if args.docker_in_docker:
         parts.append({"features": {"ghcr.io/devcontainers/features/docker-in-docker:2": {"moby": False}}})
 
-    merged = {"apt": set(), "features": {}, "extensions": [], "ports": [], "post_create": {},
+    merged = {"apt": set(), "features": {}, "extensions": [], "ports": [], "on_create": {}, "post_create": {},
               "checks": [], "dockerfile": [], "dependabot": []}
     base_image, base_priority = DEFAULT_BASE, -1
     for part in parts:
@@ -72,8 +78,9 @@ def compose(stacks, args, versions):
         merged["features"].update(part.get("features", {}))
         merged["extensions"] += [e for e in part.get("extensions", []) if e not in merged["extensions"]]
         merged["ports"] += [p for p in part.get("ports", []) if p not in merged["ports"]]
+        merged["on_create"].update(part.get("on_create", {}))
         merged["post_create"].update(part.get("post_create", {}))
-        merged["checks"] += part.get("checks", [])
+        merged["checks"] += [c for c in part.get("checks", []) if c not in merged["checks"]]
         merged["dockerfile"] += part.get("dockerfile", [])
         merged["dependabot"] += part.get("dependabot", [])
         if part.get("base_image", {}).get("priority", -1) > base_priority:
@@ -104,6 +111,10 @@ def devcontainer_json(args, merged):
         "postCreateCommand": post,
         "customizations": {"vscode": {"extensions": merged["extensions"] + ["Anthropic.claude-code"]}},
     }
+    if merged["on_create"]:
+        config["onCreateCommand"] = merged["on_create"]
+    if args.lighthouse:
+        config["containerEnv"]["CHROME_PATH"] = "/usr/bin/chromium"
     return json.dumps(config, indent=2) + "\n"
 
 def dockerfile(merged):
@@ -139,6 +150,8 @@ def dependabot(merged):
 def planned_files(args, merged, values, stack_names):
     pinned = {k: v for k, v in values.items() if k in ("ruby", "go", "rails", "node") and
               (k in ("node",) and "web" in stack_names or k in ("ruby", "rails", "go") and k in stack_names or k == "ruby" and "rails" in stack_names)}
+    if args.lighthouse:
+        pinned["lighthouse"] = values["lighthouse"]
     files = {
         ".devcontainer/devcontainer.json": devcontainer_json(args, merged),
         ".devcontainer/Dockerfile": dockerfile(merged),
@@ -151,6 +164,10 @@ def planned_files(args, merged, values, stack_names):
     for name in ("claude-config-README.md", "shared-claude-rules-starter.md"):
         files[f".devcontainer/{name}"] = (KIT / "templates" / name).read_text()
     files[".github/workflows/scheduled-checks.yml"] = (KIT / "templates" / "scheduled-checks.yml").read_text()
+    if args.lighthouse:
+        files[".github/workflows/lighthouse-sandbox-review.yml"] = (
+            KIT / "templates" / "lighthouse-sandbox-review.yml"
+        ).read_text()
     return files
 
 def build_parser():
@@ -161,18 +178,22 @@ def build_parser():
     parser.add_argument("--node", default="lts", help="lts (default), latest, or a major such as 24")
     parser.add_argument("--database", default="sqlite", choices=["sqlite", "postgres"])
     parser.add_argument("--browser-tests", action="store_true")
+    parser.add_argument("--lighthouse", action="store_true", help="add Lighthouse and Chromium for the web stack")
     parser.add_argument("--docker-in-docker", action="store_true")
     parser.add_argument("--force", action="store_true", help="overwrite existing files")
     parser.add_argument("--dry-run", action="store_true")
     return parser
 
 def main():
-    args = build_parser().parse_args()
+    parser = build_parser()
+    args = parser.parse_args()
 
     project = pathlib.Path(args.project_dir).expanduser().resolve()
     args.name = (args.name or project.name).replace(",", "-").replace(" ", "-")
     stacks, names = load_stacks([s.strip() for s in args.stacks.split(",") if s.strip()])
-    versions = lookup_versions()
+    if args.lighthouse and "web" not in names:
+        parser.error("--lighthouse requires the web stack")
+    versions = lookup_versions(args.lighthouse)
     merged, values = compose(stacks, args, versions)
     files = planned_files(args, merged, values, names)
 

@@ -51,7 +51,7 @@ extensions, ports, and setup steps into one devcontainer.
 | `go` | Go from the official `go` Feature |
 | `ruby` | the official `ruby:<version>-slim-<debian>` image as the base (every other stack uses `debian:stable-slim`) |
 | `rails` | needs `ruby`; Rails gem, SQLite and libvips; options for Postgres and browser tests |
-| `web` | HTML/CSS/JS: Node (LTS by default), Prettier and ESLint, a static-server port |
+| `web` | HTML/CSS/JS: Node (LTS by default), Prettier and ESLint, a static-server port; optional Lighthouse |
 
 Combine them, for example `--stacks go,ruby` or `--stacks rails,web`. To add a
 stack, add `stacks/<name>.json` (copy the nearest one) and a row above.
@@ -61,19 +61,33 @@ stack, add `stacks/<name>.json` (copy the nearest one) and a row above.
 ```bash
 script/new-devcontainer --project-dir ~/develop/myapp --stacks rails,web \
     [--name myapp] [--node lts|latest|24] [--database sqlite|postgres] \
-    [--browser-tests] [--docker-in-docker] [--dry-run]
+    [--browser-tests] [--lighthouse] [--docker-in-docker] [--dry-run]
 ```
 
 It looks up the latest releases (`script/latest-versions`: endoflife.date,
-RubyGems, Docker Hub), then writes `.devcontainer/`, `.github/dependabot.yml`,
-`.github/workflows/scheduled-checks.yml`, and a devcontainer section in
-`AGENTS.md`. Needs only `python3` and network access.
+RubyGems, Docker Hub, and npm when Lighthouse is selected), then writes
+`.devcontainer/`, `.github/dependabot.yml`, `.github/workflows/scheduled-checks.yml`,
+and a devcontainer section in `AGENTS.md`. Needs only `python3` and network access.
+
+For web apps, `--lighthouse` adds Chromium and installs a pinned Lighthouse
+globally inside the container before post-create checks. It requires the `web`
+stack and a Node version supported by the selected Lighthouse release. The
+weekly version check reports when Lighthouse is outdated; projects own their
+audit targets and thresholds.
+
+Docker's default security settings can prevent Chromium's sandbox from starting.
+Until a safer compatible setup is available, audit **trusted local pages only**
+with `lighthouse <url> --chrome-flags="--headless --no-sandbox"`. This disables
+Chromium's sandbox for that run; the browser can access the container's mounted
+files, credentials, and network. With `--lighthouse`, a quarterly GitHub
+Actions workflow opens a review issue if one is not already open, so the project
+can revisit this workaround. It runs without AI after the workflow is pushed.
 
 ## Validate generation
 
 Run `script/test-generation` to generate every non-empty stack combination in a
 temporary folder and check generated JSON and shell syntax. It also checks
-Rails browser-tests with SQLite. The script looks up current
+Rails browser-tests with Lighthouse and SQLite. The script looks up current
 versions, so it needs network access.
 
 ## Why the choices

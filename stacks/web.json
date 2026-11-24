@@ -8,5 +8,16 @@
   "post_create": {"npm": "if [ -f package-lock.json ]; then npm ci; elif [ -f package.json ]; then npm install; fi"},
   "checks": ["node --version", "npm --version"],
   "dependabot": [{"ecosystem": "npm", "directory": "/"}],
-  "ports": [8000]
+  "ports": [8000],
+  "options": {
+    "lighthouse": {
+      "yes": {
+        "apt": ["chromium", "fonts-liberation"],
+        "on_create": {
+          "install lighthouse": "npm install --global --engine-strict lighthouse@{lighthouse}"
+        },
+        "checks": ["chromium --version", "lighthouse --version"]
+      }
+    }
+  }
 }

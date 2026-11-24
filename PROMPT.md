@@ -43,7 +43,11 @@ Rails: the first answer decides.
 4. **If `web` (or Node is wanted):** Node **LTS** (default) or latest, or a
    specific major. Recommend LTS: it gets about 30 months of fixes and matches
    what hosting platforms support; "Current" releases can end within a year.
-5. **Does it need Docker inside the devcontainer?** Default no (Postgres adds it
+5. **If `web`:** is this a web app that needs Lighthouse audits? If yes, add
+   `--lighthouse` (also installs Chromium); otherwise leave it off. Audit targets
+   and thresholds belong to the project. The Docker sandbox workaround and
+   quarterly review reminder are described in the kit README.
+6. **Does it need Docker inside the devcontainer?** Default no (Postgres adds it
    automatically).
 
 Versions are not asked: the kit uses the latest supported release of each, looked
@@ -55,7 +59,7 @@ anyone who asks why.
 ```bash
 cd ~/develop/devcontainer-kit
 script/new-devcontainer --project-dir <dir> --stacks <comma list> --name <name> \
-    [--node lts|latest|<major>] [--database postgres] [--browser-tests] [--docker-in-docker] --dry-run
+    [--node lts|latest|<major>] [--database postgres] [--browser-tests] [--lighthouse] [--docker-in-docker] --dry-run
 ```
 Run with `--dry-run` first, then without. It refuses to overwrite existing files;
 if the project already has a `.devcontainer/`, show the user the difference and

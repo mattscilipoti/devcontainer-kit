@@ -2,11 +2,12 @@
 """Print the latest supported releases as JSON (python3 standard library only).
 
 Why these sources: endoflife.date is a public API kept current for languages, so
-the kit never copies a version from an old template; RubyGems has Rails; Docker
+the kit never copies a version from an old template; RubyGems has Rails; npm has
+Lighthouse when requested; Docker
 Hub says whether an official ruby image tag exists yet (new patch releases can lag).
 Everything is Debian: the kit strongly prefers it (see README, "Why the choices").
 """
-import datetime, json, sys, urllib.request
+import argparse, datetime, json, sys, urllib.request
 
 def get(url):
     request = urllib.request.Request(url, headers={"User-Agent": "devcontainer-kit"})
@@ -39,6 +40,9 @@ def ruby_tag_exists(tag):
         return False
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--lighthouse", action="store_true", help="also look up Lighthouse on npm")
+    args = parser.parse_args()
     today = datetime.date.today().isoformat()
     ruby = newest_supported("ruby", today)
     go = newest_supported("go", today)
@@ -47,7 +51,7 @@ def main():
     exact = f"{ruby['latest']}-slim-{debian}"
     floating = f"{ruby['cycle']}-slim-{debian}"
     image = exact if ruby_tag_exists(exact) else floating
-    print(json.dumps({
+    versions = {
         "checked_on": today,
         "debian": debian,
         "ruby": ruby["latest"],
@@ -56,7 +60,10 @@ def main():
         "node_lts": node_lts,
         "node_latest": node_latest,
         "rails": get("https://rubygems.org/api/v1/versions/rails/latest.json")["version"],
-    }, indent=2))
+    }
+    if args.lighthouse:
+        versions["lighthouse"] = get("https://registry.npmjs.org/lighthouse/latest")["version"]
+    print(json.dumps(versions, indent=2))
 
 if __name__ == "__main__":
     main()

@@ -20,7 +20,7 @@ GENERATOR = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(GENERATOR)
 
 
-def generate_case(scratch, index, names, versions, browser_tests=False):
+def generate_case(scratch, index, names, versions, browser_tests=False, lighthouse=False):
     case_dir = scratch / str(index)
     arguments = [
         "--project-dir",
@@ -32,10 +32,34 @@ def generate_case(scratch, index, names, versions, browser_tests=False):
     ]
     if browser_tests:
         arguments.append("--browser-tests")
+    if lighthouse:
+        arguments.append("--lighthouse")
     args = GENERATOR.build_parser().parse_args(arguments)
     stacks, loaded_names = GENERATOR.load_stacks(names)
     merged, values = GENERATOR.compose(stacks, args, versions)
     files = GENERATOR.planned_files(args, merged, values, loaded_names)
+
+    config = json.loads(files[".devcontainer/devcontainer.json"])
+    pinned = json.loads(files[".devcontainer/versions.json"])
+    checks = files[".devcontainer/check-dependencies.sh"]
+    if lighthouse:
+        if (
+            pinned.get("lighthouse") != versions["lighthouse"]
+            or versions["lighthouse"] not in config["onCreateCommand"]["install lighthouse"]
+            or config["containerEnv"].get("CHROME_PATH") != "/usr/bin/chromium"
+            or "lighthouse --version" not in checks
+            or checks.count("show_version 'chromium'") != 1
+            or "        chromium \\" not in files[".devcontainer/Dockerfile"]
+            or ".github/workflows/lighthouse-sandbox-review.yml" not in files
+        ):
+            raise AssertionError("Lighthouse generation is missing its install, browser, or checks")
+    elif (
+        "lighthouse" in pinned
+        or "lighthouse --version" in checks
+        or "CHROME_PATH" in config["containerEnv"]
+        or ".github/workflows/lighthouse-sandbox-review.yml" in files
+    ):
+        raise AssertionError("Lighthouse must be opt-in")
 
     workflow = files[".github/workflows/scheduled-checks.yml"]
     action_refs = re.findall(r"^\s*(?:-\s*)?uses:\s*([^\s#]+)", workflow, re.MULTILINE)
@@ -45,7 +69,6 @@ def generate_case(scratch, index, names, versions, browser_tests=False):
         raise AssertionError("Scheduled workflow actions must use full commit SHAs")
 
     if "rails" in loaded_names:
-        config = json.loads(files[".devcontainer/devcontainer.json"])
         if (
             "ghcr.io/devcontainers/features/docker-in-docker:2" in config["features"]
             or "libpq-dev" in files[".devcontainer/Dockerfile"]
@@ -64,7 +87,7 @@ def generate_case(scratch, index, names, versions, browser_tests=False):
 
 
 def main():
-    versions = GENERATOR.lookup_versions()
+    versions = GENERATOR.lookup_versions(lighthouse=True)
     stack_names = sorted(path.stem for path in (KIT / "stacks").glob("*.json"))
     combinations = [
         combo
@@ -77,17 +100,27 @@ def main():
         for index, combo in enumerate(combinations):
             generate_case(scratch, index, combo, versions)
 
+        generate_case(scratch, len(combinations), ("web",), versions, lighthouse=True)
         generate_case(
             scratch,
-            len(combinations),
+            len(combinations) + 1,
             ("rails", "web"),
             versions,
             browser_tests=True,
+            lighthouse=True,
         )
+        result = subprocess.run(
+            [sys.executable, str(GENERATOR_PATH), "--project-dir", str(scratch / "invalid"),
+             "--stacks", "go", "--lighthouse"],
+            text=True,
+            capture_output=True,
+        )
+        if result.returncode == 0 or "--lighthouse requires the web stack" not in result.stderr:
+            raise AssertionError("Lighthouse without web must fail clearly")
 
     print(
         f"Validated {len(combinations)} stack combinations and "
-        "Rails browser-tests with SQLite."
+        "Lighthouse with web and Rails browser-tests."
     )
 
 

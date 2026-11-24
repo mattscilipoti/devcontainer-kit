@@ -46,6 +46,12 @@ the project needs to keep it.
 - The standalone `web` stack rebuilt in VS Code and passed its dependency and
   shared-rule checks. Its scratch project is at
   `~/develop/devcontainer-kit-vscode-web-validation/`.
+- The opt-in `web --lighthouse` stack rebuilt and passed its dependency checks
+  and a Lighthouse audit of a trusted local page using an explicit
+  `--headless --no-sandbox` flag. Docker's default seccomp profile is retained.
+  The opt-in also generates a quarterly sandbox review reminder; its issue
+  creation and duplicate handling were tested locally with a fake GitHub CLI,
+  but the reminder workflow has not run on GitHub.
 - Generation preserved unrelated scratch-project files and existing `AGENTS.md`
   content, and refused to overwrite generated files without `--force`.
 - Docker Desktop could not mount the scratch workspace under `/tmp`; a scratch
