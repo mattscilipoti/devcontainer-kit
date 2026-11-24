@@ -1,10 +1,9 @@
 # Handoff: where devcontainer-kit stands
 
-Written 2026-11-24 from a planning and build session in the `on_board_with_matt`
-project, so the work can continue here, in this repo
-(`git@github.com:mattscilipoti/devcontainer-kit.git`, at
-`~/develop/devcontainer-kit/`). Delete or replace this file once the open
-decisions below are settled.
+Status and migration guidance for devcontainer-kit. This document may be copied
+into any project to help its AI assistant compare an existing devcontainer with
+the kit. Follow that project's instructions and confirm its requirements with
+the owner; do not assume a particular stack or project configuration.
 
 ## Update: 2026-11-24
 
@@ -49,28 +48,17 @@ decisions below are settled.
   commented on the same version-drift issue; the original pin was restored.
   The owner closed the test issue. A subsequent run passed with all direct
   workflow action references pinned to full commit SHAs in response to a
-  security alert; alert resolution has not been confirmed. The public test
-  repository has an active weekly workflow. Do not edit `on_board_with_matt`
-  or push without asking.
+  security alert, which the owner confirmed was resolved. The public test
+  repository has an active weekly workflow. Ask before pushing or changing
+  repository settings.
 
 ## Starting here
 
-This file was written inside the `on_board_with_matt` devcontainer, where the kit
-lived as an untracked staging folder. To continue:
-
-1. On the host, copy it into place and push (nothing has been pushed):
-   `cp -a <on_board_with_matt>/devcontainer-kit ~/develop/devcontainer-kit`, then
-   `git init`, commit, `git remote add origin git@github.com:mattscilipoti/devcontainer-kit.git`,
-   `git push -u origin main`. Ask the owner before pushing.
-2. Open `~/develop/devcontainer-kit` in your tool. The kit needs only `python3`,
-   `curl`, `git`, and `docker` (to test builds); it has no devcontainer of its own.
-3. Read [AGENTS.md](AGENTS.md), then the sections below. Settle the open decisions,
-   then do the next steps in order.
-
-The `on_board_with_matt` repo tracks this work as an **In progress** feature in its
-`docs/features.md` ("Devcontainer kit for new projects"). When the kit is done
-(generates and verifies every stack), the owner records its actuals there; do not
-edit that repo from here without being asked.
+- In the kit repository, read [AGENTS.md](AGENTS.md), [README.md](README.md),
+  and [PROMPT.md](PROMPT.md). The kit has no devcontainer of its own.
+- In a project receiving this handoff, read that project's instructions first,
+  then follow the migration section below. Access the kit using the instructions
+  there if it is not already available.
 
 ## Goal
 
@@ -106,8 +94,7 @@ templates: bind-mount a **host folder outside the repo**,
 with `CLAUDE_CONFIG_DIR` set, and a read-only shared folder
 `~/.claude-devcontainers/shared/` linked in for personal `CLAUDE.md` rules.
 `initializeCommand` creates the folders on the host first (a bind mount fails when
-the source is missing). The first project to adopt this is `on_board_with_matt`
-(commit `99b41d6` there). `prompts/move-claude-config-to-host-bind-mount.md`
+the source is missing). `prompts/move-claude-config-to-host-bind-mount.md`
 converts older projects.
 
 ## What exists
@@ -115,32 +102,11 @@ converts older projects.
 `README.md` (humans), `PROMPT.md` (the AI's steps), `stacks/*.json`,
 `templates/`, `script/new-devcontainer`, `script/latest-versions`, `prompts/`.
 
-## Tested and not tested
+## Validation status
 
-State as of the end of the 2026-11-24 session (Debian switch included).
-
-**Tested:**
-- Every stack alone, plus `go,ruby` and `rails,web --database postgres
-  --browser-tests`, generate valid `devcontainer.json`, shell scripts, and
-  Dockerfiles. Unknown stacks and existing files give clear errors.
-- The generated **Go** Dockerfile (`debian:stable-slim`) builds.
-- `script/latest-versions` resolves Ruby 4.0.10 (`ruby:4.0.10-slim-trixie`), Go
-  1.27.4, Node LTS 26, Rails 8.1.4.1, Debian `trixie`.
-- `check-versions.sh` exits 0 when current and 1 when behind.
-- Before the Debian switch, a generated Rails image on the Ubuntu-based
-  `rubylang` image built and ran (gem folder writable by a non-root user). That
-  image is gone; the Debian equivalent has **not** been confirmed.
-
-**Not tested (do these first):**
-- A build of the generated `rails,web --database postgres --browser-tests`
-  Dockerfile on `ruby:4.0.10-slim-trixie`. It was started but the result was not
-  seen. Check that `chromium`, `chromium-driver`, `libvips-dev`, `libpq-dev` install,
-  `rails --version` works, and a non-root user can write to `/usr/local/bundle`.
-- Opening a generated project in VS Code: the `common-utils` Feature creating the
-  `vscode` user on a Debian base, the bind mounts, `postCreateCommand`, and the
-  Go, Node, and docker-in-docker Features.
-- The GitHub workflow (`scheduled-checks.yml` has never run; see the update above).
-- That `script/new-devcontainer` leaves an existing project's other files alone.
+See the update above for stack, generator, and GitHub workflow validation.
+These checks do not replace testing the receiving project's own requirements.
+The Postgres option has not been validated in a rebuilt devcontainer.
 
 ## Open decisions
 
@@ -154,11 +120,11 @@ State as of the end of the 2026-11-24 session (Debian switch included).
 
 ## Next steps
 
-1. Work through the remaining untested items in the update above.
-2. Ask before migrating `on_board_with_matt` (plan below).
-3. Commit and push this repo only with the owner's approval.
+1. For a receiving project, compare its existing configuration with the kit as
+   described below, and get the owner's approval before making migration changes.
+2. Commit and push changes only with the owner's approval.
 
-## Migrating on_board_with_matt (do not run the generator over it)
+## Migrating an existing project (do not run the generator over it)
 
 ### Access the kit from the project devcontainer
 
@@ -187,7 +153,7 @@ tool calls. Read `AGENTS.md` and `README.md` in the clone, and use this copied
 handoff's migration instructions if they are newer than the clone. Use the
 clone's `script/new-devcontainer` and its `stacks/` and `templates/` for the
 comparison below. Generate the reference into a new directory under the printed
-scratch path, **not** into `on_board_with_matt`.
+scratch path, **not** into the existing project.
 
 If HTTPS authentication or network access fails, stop and ask the owner to copy
 the tracked kit files into a new scratch folder in the project workspace from
@@ -213,27 +179,30 @@ clone or an owner-provided copy.
 
 ### Compare and migrate
 
-It predates the kit: Debian `stable-slim` with Debian's Ruby, Node 24 (the runtime
-Neon Functions use, so keep `--node 24`), the Neon CLI, Lighthouse, a Real-ESRGAN
-upscaler virtualenv, Chromium, Postgres client and docker-in-docker.
-These details are historical: inspect the current project and confirm its
-database, Node version, and other requirements with the owner before generating
-the reference or changing dependencies.
-1. Generate a reference copy in the scratch directory, using the confirmed
-   options. For example, with the historical options and the printed path in
-   place of `<scratch>`:
-   `<scratch>/kit/script/new-devcontainer --project-dir <scratch>/reference --stacks rails,web --database postgres --browser-tests --node 24 --name on_board_with_matt`.
-2. Move to the kit's Ruby base, `ruby:<version>-slim-trixie` (Ruby 3.3 to 4.0 is a real upgrade: run the tests
-   and `bin/bundler-audit`, and update `.ruby-version`), or pin 3.3/3.4.
-3. Keep project-specific parts: Neon CLI and Lighthouse, upscaler venv and its
-   weights check, `python3-venv`, locales, the `neon` volume mount, `npm ci
-   --prefix functions/intake`, `git config core.hooksPath .githooks`,
-   `portsAttributes`, docker-in-docker, and its own `check-dependencies.sh`.
-4. Let the kit replace: the manual Node tarball (Node Feature at 24), `useradd` and
-   sudo (`common-utils`), the host and link scripts, `versions.json`,
-   `check-versions.sh`, `scheduled-checks.yml`.
-5. Add the `devcontainers` ecosystem to the project's `dependabot.yml`; keep its
-   `ci.yml`. Rebuild, run `check-dependencies.sh`, `bin/rails test`, and
-   `script/lighthouse`.
-Do the migration as its own small feature, after the print-board feature is
-committed (it now is).
+1. Inspect the project's instructions and existing devcontainer, dependencies,
+   tests, CI, and scheduled checks. Ask the owner to confirm the project's stack,
+   database, runtime version constraints, browser tests, and Docker needs.
+   Preserve existing work and do not assume Rails, Node, or a particular database.
+2. Generate a reference in a new scratch directory, never over the project.
+   Before showing or running a command, replace every placeholder with the
+   confirmed project's actual values. Include only the optional flags that apply;
+   see the cloned kit's `README.md` for supported options and defaults:
+
+   ```bash
+   "<kit-dir>/script/new-devcontainer" \
+     --project-dir "<scratch-reference-dir>" \
+     --stacks "<confirmed-stacks>" --name "<project-name>"
+   ```
+
+3. Compare the reference with the project. Identify project-specific tools,
+   mounts, ports, startup commands, tests, and CI settings to preserve. Discuss
+   runtime upgrades, compatibility constraints, and proposed replacements with
+   the owner before changing anything.
+4. After approval, make the agreed changes without overwriting unrelated project
+   files. Preserve existing project-specific checks and CI, and merge applicable
+   kit changes rather than replacing configuration blindly.
+5. After a dependency or devcontainer change, tell the owner to rebuild and
+   **wait**. Once rebuilt, run the project's `check-dependencies.sh` inside the
+   container, then the agreed project tests. Fix failures in configuration and
+   repeat the rebuild-and-check cycle. Ask before pushing or changing GitHub
+   settings.

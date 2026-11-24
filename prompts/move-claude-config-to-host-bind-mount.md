@@ -87,7 +87,7 @@ me before anything destructive.
      a deleted container). Say so plainly; do not promise recovery.
 
 5. **Add a README for the host folder.** Save the README template I give you
-   (`claude-config-README.md` from the On Board With Matt repo's `.devcontainer/`)
+   (`claude-config-README.md` from the kit's `templates/`)
    as `.devcontainer/claude-config-README.md`. If I did not attach it, write the
    same points: what the folder is, why it exists, that it holds credentials and
    must never be committed or shared, how to back it up, and how to reset it.
