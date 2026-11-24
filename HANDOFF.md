@@ -5,6 +5,21 @@ into any project to help its AI assistant compare an existing devcontainer with
 the kit. Follow that project's instructions and confirm its requirements with
 the owner; do not assume a particular stack or project configuration.
 
+## For the human: start a migration
+
+Copy this file into the project you want to migrate. On the host, replace
+`<project>` with that project's folder:
+
+```bash
+cp -i ~/develop/devcontainer-kit/HANDOFF.md "<project>/devcontainer-kit-migration-handoff.md"
+```
+
+In that project's AI session, ask it to read the copied file and follow
+**Migrating an existing project** below. It will obtain the kit and propose a
+plan; answer its questions and approve changes before it proceeds. After a
+devcontainer change, rebuild when asked. The copied handoff is temporary unless
+the project needs to keep it.
+
 ## Update: 2026-11-24
 
 - The owner chose to leave this kit without its own devcontainer for now, so it
