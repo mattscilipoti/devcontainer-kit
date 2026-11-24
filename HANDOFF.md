@@ -160,11 +160,64 @@ State as of the end of the 2026-11-24 session (Debian switch included).
 
 ## Migrating on_board_with_matt (do not run the generator over it)
 
+### Access the kit from the project devcontainer
+
+If the project container cannot see the host's kit folder, clone the pushed kit
+into a temporary directory **inside the container**. This gives the session the
+scripts, stacks, and templates without mounting the host workspace or Claude
+credentials. GitHub access and `git`, `python3`, and network access are needed.
+Only pushed commits are available; confirm the clone's commit with the owner if
+the host kit may have unpushed changes.
+
+```bash
+set -e
+kit_root="$(mktemp -d /tmp/devcontainer-kit-migration.XXXXXX)"
+git clone git@github.com:mattscilipoti/devcontainer-kit.git "$kit_root/kit"
+git -C "$kit_root/kit" rev-parse HEAD
+printf 'Kit and reference scratch directory: %s\n' "$kit_root"
+```
+
+Keep the printed path for the session; shell variables may not persist between
+tool calls. Read `AGENTS.md` and `README.md` in the clone, and use this copied
+handoff's migration instructions if they are newer than the clone. Use the
+clone's `script/new-devcontainer` and its `stacks/` and `templates/` for the
+comparison below. Generate the reference into a new directory under the printed
+scratch path, **not** into `on_board_with_matt`.
+
+If SSH authentication or network access fails, stop and ask the owner to copy
+the tracked kit files into a new scratch folder in the project workspace from
+the host. For example, on the host (replace `<project>` with the actual host
+path, and do not run this if the destination already exists):
+
+```bash
+set -euo pipefail
+mkdir "<project>/.kit-migration-reference"
+git -C ~/develop/devcontainer-kit archive HEAD |
+  tar -x -C "<project>/.kit-migration-reference"
+git -C ~/develop/devcontainer-kit rev-parse HEAD
+```
+
+This copies the host kit's committed files without its `.git` directory or
+untracked files. The session can use `.kit-migration-reference` as the kit
+directory and a separate scratch directory for the generated reference; neither
+belongs in the project's commits. Remove the scratch folders when finished.
+Do not copy or mount SSH keys, tokens, or host Claude credentials. If the session
+cannot access `/tmp`, agree on a scratch location it can access. A host bind
+mount would require a devcontainer change and rebuild, so prefer the temporary
+clone or an owner-provided copy.
+
+### Compare and migrate
+
 It predates the kit: Debian `stable-slim` with Debian's Ruby, Node 24 (the runtime
 Neon Functions use, so keep `--node 24`), the Neon CLI, Lighthouse, a Real-ESRGAN
 upscaler virtualenv, Chromium, Postgres client and docker-in-docker.
-1. Generate a reference copy in `/tmp`:
-   `script/new-devcontainer --project-dir /tmp/obwm --stacks rails,web --database postgres --browser-tests --node 24 --name on_board_with_matt`.
+These details are historical: inspect the current project and confirm its
+database, Node version, and other requirements with the owner before generating
+the reference or changing dependencies.
+1. Generate a reference copy in the scratch directory, using the confirmed
+   options. For example, with the historical options and the printed path in
+   place of `<scratch>`:
+   `<scratch>/kit/script/new-devcontainer --project-dir <scratch>/reference --stacks rails,web --database postgres --browser-tests --node 24 --name on_board_with_matt`.
 2. Move to the kit's Ruby base, `ruby:<version>-slim-trixie` (Ruby 3.3 to 4.0 is a real upgrade: run the tests
    and `bin/bundler-audit`, and update `.ruby-version`), or pin 3.3/3.4.
 3. Keep project-specific parts: Neon CLI and Lighthouse, upscaler venv and its
