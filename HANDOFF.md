@@ -47,9 +47,11 @@ decisions below are settled.
   and limits SARIF severity; a third run passed both scans and uploads.
   Two further runs with an intentionally outdated Node pin created and then
   commented on the same version-drift issue; the original pin was restored.
-  The test issue remains open. The public test repository has an active weekly
-  workflow, and GitHub reported a critical Dependabot alert there. Do not edit
-  `on_board_with_matt` or push without asking.
+  The owner closed the test issue. A subsequent run passed with all direct
+  workflow action references pinned to full commit SHAs in response to a
+  security alert; alert resolution has not been confirmed. The public test
+  repository has an active weekly workflow. Do not edit `on_board_with_matt`
+  or push without asking.
 
 ## Starting here
 
