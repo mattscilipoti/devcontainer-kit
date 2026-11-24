@@ -12,6 +12,22 @@ out-of-date and security checks. An AI or a human runs it. Repo:
 - **Human:** answer the questions in PROMPT.md yourself, then run
   `script/new-devcontainer` (below).
 
+## Migrate an existing project
+
+On the host, copy [HANDOFF.md](HANDOFF.md) into the project you want to migrate.
+Replace `<project>` with that project's host folder:
+
+```bash
+cp -i ~/develop/devcontainer-kit/HANDOFF.md "<project>/devcontainer-kit-migration-handoff.md"
+```
+
+In that project's AI session, ask it to read the copied handoff and follow its
+**Migrating an existing project** section. It will obtain the kit, inspect the
+project, and propose a migration rather than overwrite existing files. Answer
+its questions and approve the plan before changes; after changes, rebuild the
+container when asked. The copied handoff is temporary unless the project needs
+to keep it; do not commit it accidentally.
+
 ## Shared and project-specific files
 
 | Lives in | What | Shared by |
