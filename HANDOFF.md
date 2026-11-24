@@ -45,9 +45,11 @@ decisions below are settled.
   both Trivy scans, but GitHub rejected their combined SARIF upload because
   the reports had the same category. The template now uploads each separately
   and limits SARIF severity; a third run passed both scans and uploads.
-  Issue creation remains unverified. The public test repository has an active
-  weekly workflow, and GitHub reported a critical Dependabot alert there.
-  Do not edit `on_board_with_matt` or push without asking.
+  Two further runs with an intentionally outdated Node pin created and then
+  commented on the same version-drift issue; the original pin was restored.
+  The test issue remains open. The public test repository has an active weekly
+  workflow, and GitHub reported a critical Dependabot alert there. Do not edit
+  `on_board_with_matt` or push without asking.
 
 ## Starting here
 
