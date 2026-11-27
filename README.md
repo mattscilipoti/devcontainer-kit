@@ -127,6 +127,12 @@ No AI runs on a schedule. Each project gets:
   an issue when a pinned language version is behind, and Trivy scans the base
   image and repository for high and critical vulnerabilities (results in the
   Security tab).
+- **Deliberate holds:** if a project must stay on an older version on purpose (for
+  example a hosting runtime that has not caught up), add a reason under `holds` in
+  `.devcontainer/versions.json`, such as `"holds": {"node": "Neon Functions only
+  offers nodejs24"}`. The check then prints `HOLD` with the reason instead of
+  opening an issue. A hold hides the drift, so give the project its own scheduled
+  check for when the hold can end.
 
 Turn on Dependabot alerts and security updates for the repository (Settings →
 Code security), or with `gh`: see PROMPT.md step 8.
