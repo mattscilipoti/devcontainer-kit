@@ -114,7 +114,7 @@ with the folder path), and prunes delete unused volumes. Solution, already in th
 templates: bind-mount a **host folder outside the repo**,
 `~/.claude-devcontainers/<project>/` at `~/.claude` (it holds `.credentials.json`),
 with `CLAUDE_CONFIG_DIR` set, and a read-only shared folder
-`~/.claude-devcontainers/shared/` linked in for personal `CLAUDE.md` rules.
+`~/.ai-shared/` linked in for personal `CLAUDE.md` rules.
 `initializeCommand` creates the folders on the host first (a bind mount fails when
 the source is missing). `prompts/move-claude-config-to-host-bind-mount.md`
 converts older projects.

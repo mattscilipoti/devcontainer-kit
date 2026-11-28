@@ -33,11 +33,11 @@ to keep it; do not commit it accidentally.
 | Lives in | What | Shared by |
 |---|---|---|
 | `~/develop/devcontainer-kit/` | this kit: stacks, templates, scripts, prompts | every project |
-| `~/.claude-devcontainers/shared/` | personal Claude rules (`CLAUDE.md`), mounted read-only | every project |
+| `~/.ai-shared/` | personal AI rules, skills, commands, agents; installed from the kit's `shared/` by `script/install-shared`, mounted read-only | every project |
 | `~/.claude-devcontainers/<project>/` | that project's Claude sign-in and history (holds credentials) | one project |
 | `<project>/.devcontainer/`, `.github/`, `AGENTS.md` | generated devcontainer, scheduled checks, rules for AI | one project (committed) |
 
-Fixing the kit or `shared/` reaches every project. A project's files are its own
+Fixing the kit or `shared/` reaches every project (run `script/install-shared` after editing `shared/`; see [shared/README.md](shared/README.md)). A project's files are its own
 once generated; the kit does not overwrite them unless asked (`--force`).
 
 ## Stacks

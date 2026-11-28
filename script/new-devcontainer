@@ -93,7 +93,7 @@ def devcontainer_json(args, merged):
     name = args.name
     features = {"ghcr.io/devcontainers/features/common-utils:2": {"username": "vscode", "uid": "1000", "gid": "1000"}}
     features.update(merged["features"])
-    post = {"link shared claude rules": "bash .devcontainer/link-shared-claude-rules.sh",
+    post = {"link shared ai config": "bash .devcontainer/link-shared-ai-config.sh",
             "check dependencies": "bash .devcontainer/check-dependencies.sh"}
     post.update(merged["post_create"])
     config = {
@@ -102,7 +102,7 @@ def devcontainer_json(args, merged):
         "initializeCommand": "bash .devcontainer/create-host-claude-folders.sh",
         "mounts": [
             f"source=${{localEnv:HOME}}/.claude-devcontainers/{name},target=/home/vscode/.claude,type=bind",
-            "source=${localEnv:HOME}/.claude-devcontainers/shared,target=/home/vscode/.claude-shared,type=bind,readonly",
+            "source=${localEnv:HOME}/.ai-shared,target=/home/vscode/.ai-shared,type=bind,readonly",
         ],
         "containerEnv": {"CLAUDE_CONFIG_DIR": "/home/vscode/.claude"},
         "features": features,
@@ -159,9 +159,9 @@ def planned_files(args, merged, values, stack_names):
         ".devcontainer/versions.json": json.dumps(pinned, indent=2) + "\n",
         ".github/dependabot.yml": dependabot(merged),
     }
-    for name in ("create-host-claude-folders.sh", "link-shared-claude-rules.sh", "check-versions.sh"):
+    for name in ("create-host-claude-folders.sh", "link-shared-ai-config.sh", "check-versions.sh"):
         files[f".devcontainer/{name}"] = (KIT / "templates" / name).read_text().replace("@@NAME@@", args.name)
-    for name in ("claude-config-README.md", "shared-claude-rules-starter.md"):
+    for name in ("claude-config-README.md",):
         files[f".devcontainer/{name}"] = (KIT / "templates" / name).read_text()
     files[".github/workflows/scheduled-checks.yml"] = (KIT / "templates" / "scheduled-checks.yml").read_text()
     if args.lighthouse:

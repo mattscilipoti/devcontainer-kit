@@ -338,7 +338,7 @@ Everything that touches the wire format or key semantics, while there is exactly
 - Ship the acceptance-test templates (the §9 list) with the package so each project copies and adapts
   them.
 - The prompts listed in §11.
-- Devcontainer-kit tie-in: the skill can live in `~/.claude-devcontainers/shared/` so every generated
+- Devcontainer-kit tie-in: the skill can live in `~/.ai-shared/` so every generated
   devcontainer already sees it.
 
 ### Phase 4 — Steady-state per-project cost (the quantity being optimized)

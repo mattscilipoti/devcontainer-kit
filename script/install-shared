@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Runs on the HOST. Copies the kit's shared/ folder (rules, skills, commands,
+# agents) to ~/.ai-shared/, which every devcontainer mounts read-only. The kit repo is the source of truth, so changes are versioned.
+# Never deletes host-only files unless --prune is given (it removes anything the
+# kit does not have, so check --dry-run first).
+set -euo pipefail
+
+kit="$(cd "$(dirname "$0")/.." && pwd)"
+destination="$HOME/.ai-shared"
+# Projects generated before the rename mount this old path; keep it working.
+old_destination="$HOME/.claude-devcontainers/shared"
+options=(-a --itemize-changes --exclude=.gitkeep)
+
+for argument in "$@"; do
+  case "$argument" in
+    --dry-run) options+=(--dry-run) ;;
+    --prune) options+=(--delete) ;;
+    *) echo "Usage: $0 [--dry-run] [--prune]" >&2; exit 2 ;;
+  esac
+done
+
+if [[ " ${options[*]} " != *" --dry-run "* ]]; then
+  if [ -d "$old_destination" ] && [ ! -L "$old_destination" ]; then
+    [ -d "$destination" ] && rmdir "$destination" 2>/dev/null || true  # an empty one is leftover
+    if [ -e "$destination" ]; then
+      echo "Both $old_destination and $destination exist; merge them by hand first." >&2
+      exit 1
+    fi
+    mv "$old_destination" "$destination"
+  fi
+  mkdir -p "$destination"
+  if [ ! -e "$old_destination" ]; then
+    mkdir -p "$(dirname "$old_destination")"
+    ln -s "$destination" "$old_destination"
+  fi
+fi
+rsync "${options[@]}" "$kit/shared/" "$destination/"
