@@ -114,7 +114,9 @@ versions, so it needs network access.
   `devcontainerId`. A bind mount of a plain host folder cannot. The folder is
   outside the repo because it holds credentials. See
   [prompts/move-claude-config-to-host-bind-mount.md](prompts/move-claude-config-to-host-bind-mount.md)
-  to convert an older project.
+  to convert an older project. Projects generated before `~/.ai-shared` use
+  [prompts/migrate-to-ai-shared.md](prompts/migrate-to-ai-shared.md) to get
+  skills, commands, agents and the Codex links.
 - **Dependencies live in the devcontainer.** Tools are rebuilt reproducibly for
   every developer and every AI, not installed by hand in one workspace.
 
@@ -144,5 +146,5 @@ README.md  PROMPT.md
 stacks/       one JSON fragment per stack
 templates/    files copied into every project (Claude mount scripts, checks, workflow)
 script/       new-devcontainer, latest-versions
-prompts/      one-off prompts (convert an older project's Claude volume)
+prompts/      one-off prompts (convert an older project: Claude volume, shared AI config)
 ```
